@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cities: Skylines grid in Google Maps</title>
+    <meta name="viewport" content="initial-scale=1.0">
+    <meta charset="utf-8">
+    <style>
+        #map {
+            height: 100%;
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+<div id="map"></div>
+<script>
+    var uiSettings = {
+        gridToViewportLeastDiameterRatio: 0.4
+    };
+
+    function Grid(center, radius) {
+        if (radius === undefined) {
+            radius = 0.05;
+        }
+        this.center = center;
+        this.radius = radius;
+    }
+
+    Grid.realToSkylinesRatio = 1;
+    Grid.prototype.getBounds = function () {
+        return this.rectangleBounds(0, 0, 1);
+    };
+    Grid.prototype.rectangleBounds = function (x, y, scale) {
+        var yStep = this.radius * 2 / scale;
+        var xStep = yStep * 2;
+        var north = this.center.lat() - this.radius + yStep * x;
+        var south = this.center.lat() - this.radius + yStep * (x + 1);
+        var west = this.center.lng() - this.radius * 2 + xStep * (y + 1);
+        var east = this.center.lng() - this.radius * 2 + xStep * y;
+        return new google.maps.LatLngBounds(
+            new google.maps.LatLng(north, east),
+            new google.maps.LatLng(south, west)
+        );
+    };
+    Grid.prototype.createRectanglesBounds = function (scale) {
+        var coords = [];
+        for (var x = 0; x < scale; x++) {
+            for (var y = 0; y < scale; y++) {
+                var bounds = this.rectangleBounds(x, y, scale);
+                coords.push(bounds);
+                console.log("created ", bounds.toString());
+            }
+        }
+        return coords;
+    };
+
+    /**
+     *
+     * @param {Grid} grid
+     * @param {google.maps.Map} map
+     * @constructor
+     */
+    function GridOverlay(grid, map) {
+        this.grid = grid;
+        this.map = map;
+        this.elements = [];
+    }
+
+    GridOverlay.prototype.redraw = function () {
+        this.elements.forEach(function (element) {
+            element.setMap(null);
+        });
+        this.elements = [];
+        this.elements = this.createElements();
+        this.elements.forEach(function (element) {
+            element.setMap(this.map);
+        });
+    };
+    GridOverlay.prototype.createElements = function () {
+        var rectanglesBounds = this.grid.createRectanglesBounds(5);
+        return rectanglesBounds.map(function (bounds) {
+            return new google.maps.Rectangle({
+                bounds: bounds
+            })
+        })
+    };
+    GridOverlay.prototype.init = function () {
+
+    };
+
+    var map;
+    var gridOverlay;
+
+    function initMap() {
+        var ufa = {
+            coords: new google.maps.LatLng(54.7751429, 55.9860734)
+        };
+        map = new google.maps.Map(
+            document.getElementById('map'),
+            {
+                center: {
+                    lat: ufa.coords.lat(), lng: ufa.coords.lng()
+                },
+                zoom: 10
+            }
+        );
+        setTimeout(function () {
+            map.addListener('zoom_changed', function () {
+                gridOverlay.redraw();
+            });
+            map.addListener('center_changed', function () {
+                gridOverlay.redraw();
+            });
+            gridOverlay = new GridOverlay(
+                new Grid(
+                    map.center,
+                    (map.getBounds().getNorthEast().lat() - map.getBounds().getSouthWest().lat()) * uiSettings.gridToViewportLeastDiameterRatio / 2
+                ),
+                map
+            );
+            gridOverlay.init();
+            gridOverlay.redraw();
+        }, 800);
+    }
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAxWpSzG4BWMn7lKJWHTgmjd1-6e4T3p50&callback=initMap"
+        async defer></script>
+</body>
+</html>
