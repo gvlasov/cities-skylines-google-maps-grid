@@ -61,6 +61,8 @@
     function GridOverlay(map) {
         this.map = map;
         this.elements = [];
+        this.gridFixed = new URLSearchParams(window.location.search).get('fixed');
+        this.previousGrid = null;
     }
 
     GridOverlay.prototype.computeRadius = function () {
@@ -71,17 +73,29 @@
             element.setMap(null);
         });
         this.elements = [];
-        this.elements = this.createElements(
-            new Grid(this.map.center, this.computeRadius())
-        );
+        var grid = this.currentGrid();
+        this.elements = this.createElements(grid);
         this.elements.forEach(function (element) {
             element.setMap(this.map);
         });
+        this.previousGrid = grid;
+    };
+    GridOverlay.prototype.currentGrid = function() {
+        if (this.gridFixed && this.previousGrid !== null) {
+            return this.previousGrid;
+        } else {
+            return new Grid(this.map.center, this.computeRadius())
+        }
     };
     GridOverlay.prototype.createElements = function (grid) {
         var rectanglesBounds = grid.createRectanglesBounds(5);
         return rectanglesBounds.map(function (bounds) {
             return new google.maps.Rectangle({
+                strokeColor: '#837c21',
+                strokeOpacity: 0.5,
+                strokeWeight: 2,
+                fillColor: '#fff43d',
+                fillOpacity: 0.1,
                 bounds: bounds
             })
         })
